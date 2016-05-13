@@ -49,10 +49,10 @@ const int decomp_size = 4;  /* 4 bytes size come after the header */
 
 void exit_usage(int code) {
     fprintf((code ? stderr : stdout), "%s",
-"Usage: dejsonlz4 [-h] IN_FILE [OUT_FILE]\n"
-"   -h: Display this help and exit.\n"
-"Decompress Mozilla bookmark backup file IN_FILE to OUT_FILE.\n"
-"If OUT_FILE is not provided or is '-' then decompress to standard output.\n"
+            "Usage: dejsonlz4 [-h] IN_FILE [OUT_FILE]\n"
+            "   -h: Display this help and exit.\n"
+            "Decompress Mozilla bookmarks backup file IN_FILE to OUT_FILE.\n"
+            "If OUT_FILE is missing or is '-' then decompress to standard output.\n"
            );
     exit(code);
 }
@@ -85,51 +85,45 @@ cleanup:
 
 const size_t magic_size = sizeof mozlz4_magic;
 
+#define ERR_CLEANUP(...) { fprintf(stderr, "Error: " __VA_ARGS__); goto cleanup; }
+
 int main(int argc, char **argv)
 {
     size_t isize = 0, osize = 0;
     const char *iname = 0, *oname = 0;
     char *idata = 0, *odata = 0;
     FILE *ofile = 0;
-    int rv = 1, dsize = -1, i;
+    int rv = 1, i, dsize;
 
+    /* process arguments */
     if ((argc > 3) || (argc < 2) || (argc > 1 && !strcmp(argv[1], "-h")))
         exit_usage(argc == 2 ? 0 : 1);
     iname = argv[1];
     if (argc > 2 && strcmp("-", argv[2]))
         oname = argv[2];
 
-    if (!(idata = file_to_mem(iname, &isize))) {
-        fprintf(stderr, "Error: cannot read file '%s'\n", iname);
-        goto cleanup;
-    }
+    /* read input file and validate magic header and minimum size */
+    if (!(idata = file_to_mem(iname, &isize)))
+        ERR_CLEANUP("cannot read file '%s'\n", iname);
+    if (isize < magic_size + decomp_size || memcmp(mozlz4_magic, idata, magic_size))
+        ERR_CLEANUP("unsupported file format\n");
 
-    i = 0;
-    while (i < isize && i < magic_size && idata[i] == mozlz4_magic[i])
-        i++;
-    if (i != magic_size || isize < magic_size + decomp_size) {
-        fprintf(stderr, "Error: incorrect header or file too small\n");
-        goto cleanup;
-    }
-    for (; i < magic_size + decomp_size; i++)
+    /* read output size and allocate buffer */
+    for (i = magic_size; i < magic_size + decomp_size; i++)
         osize += (unsigned char)idata[i] << (8 * (i - magic_size));
+    if (!(odata = malloc(osize)))
+        ERR_CLEANUP("cannot allocate memory for output\n");
 
-    if (!(odata = malloc(osize))) {
-        fprintf(stderr, "Error: cannot allocate memory for output\n");
-        goto cleanup;
-    }
-    if ((dsize = LZ4_decompress_safe(idata + i, odata, isize - i, osize)) < 0) {
-        fprintf(stderr, "Error: decompression failed: %d\n", dsize);
-        goto cleanup;
-    }
+    /* decompress */
+    if ((dsize = LZ4_decompress_safe(idata + i, odata, isize - i, osize)) < 0)
+        ERR_CLEANUP("decompression failed: %d\n", dsize);
     if (dsize != osize)
         fprintf(stderr, "Warning: decompressed file smaller than expected\n");
 
+    /* write output */
     if (oname) {
-        if (!(ofile = fopen(oname, "wb"))) {
-            fprintf(stderr, "Error: cannot open '%s' for writing\n", oname);
-            goto cleanup;
-        }
+        if (!(ofile = fopen(oname, "wb")))
+            ERR_CLEANUP("cannot open '%s' for writing\n", oname);
     } else {
 #ifdef _WIN32
         /* Try changing stdout to binary mode, or else it messes with EOL chars.
@@ -141,10 +135,8 @@ int main(int argc, char **argv)
         ofile = stdout;
     }
 
-    if (dsize != fwrite(odata, 1, dsize, ofile)) {
-        fprintf(stderr, "Error: cannot write to '%s'\n", oname ? oname : "<stdout>");
-        goto cleanup;
-    }
+    if (dsize != fwrite(odata, 1, dsize, ofile))
+        ERR_CLEANUP("cannot write to '%s'\n", oname ? oname : "<stdout>");
 
     rv = 0;
 
