@@ -95,8 +95,7 @@ int main(int argc, char **argv)
 
     if ((argc > 3) || (argc < 2) || (argc > 1 && !strcmp(argv[1], "-h")))
         exit_usage(argc == 2 ? 0 : 1);
-    if (argc > 1)
-        iname = argv[1];
+    iname = argv[1];
     if (argc > 2 && strcmp("-", argv[2]))
         oname = argv[2];
 
@@ -112,10 +111,8 @@ int main(int argc, char **argv)
         fprintf(stderr, "Error: incorrect header or file too small\n");
         goto cleanup;
     }
-    while (i < magic_size + decomp_size) {
+    for (; i < magic_size + decomp_size; i++)
         osize += (unsigned char)idata[i] << (8 * (i - magic_size));
-        i++;
-    }
 
     if (!(odata = malloc(osize))) {
         fprintf(stderr, "Error: cannot allocate memory for output\n");
