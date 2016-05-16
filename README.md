@@ -1,22 +1,39 @@
 # dejsonlz4
-Decompressor for Mozilla/Firefox bookmark backup files
+Decompress Mozilla Firefox bookmarks backup files
 
-Mozilla Firefox currently uses unofficial lz4 compression for bookmark backup files,
-and `dejsonlz4` can currently be used to decompress them. These files have an extension `.jsonlz4`.
+Current Firefox bookmarks backup files are stored as non-standard file format
+based on lz4 compression. These files have a `.jsonlz4` extension. Use
+`dejsonlz4` to decompress them.
 
-This repository includes verbatim copies of `lz4.c` and `lz4.h` from the Mozilla repository
-as of 2016-05-16 (as currently used by Firefox).
+`lz4.c` and `lz4.h` at this repository are verbatim copies from the Mozilla
+repository as of 2016-05-12 (as currently used by Firefox) [1].
 
 ## Usage:
 ```
 Usage: dejsonlz4 [-h] IN_FILE [OUT_FILE]
-   -h: Display this help and exit.
-Decompress Mozilla bookmark backup file IN_FILE to OUT_FILE.
-If OUT_FILE is not provided or is '-' then decompress to standard output.
+   -h  Display this help and exit.
+Decompress Mozilla bookmarks backup file IN_FILE to OUT_FILE.
+If OUT_FILE is '-' or missing, decompress to standard output.
 ```
 
 ## Build:
 - `gcc -Wall -o dejsonlz4 dejsonlz4.c lz4.c`
 
 ## Windows note:
-- `dejsonlz4` currently does not support unicode file names, for the sake of simpler code.
+- `dejsonlz4` on Windows does not support unicode path/file names at this time.
+
+## References:
+- Project page and source files: https://github.com/avih/dejsonlz4
+- Releases and binary builds for Windows: https://github.com/avih/dejsonlz4/releases
+
+### External resources:
+- Mozilla Firefox
+[bug 818587]( https://bugzilla.mozilla.org/show_bug.cgi?id=818587 ) - Compress
+bookmark backups.
+- Mozilla Firefox
+[bug 1209390]( https://bugzilla.mozilla.org/show_bug.cgi?id=1209390 ) - Use
+standard lz4 file format instead of the non-standard jsonlz4/mozlz4.
+
+[1] Mozilla's mercurial repo rev. c3f5e6079284:
+[lz4.h]( http://hg.mozilla.org/mozilla-central/file/c3f5e6079284/mfbt/lz4.h )
+and [lz4.c]( http://hg.mozilla.org/mozilla-central/file/c3f5e6079284/mfbt/lz4.c )

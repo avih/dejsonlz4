@@ -1,5 +1,5 @@
 /*
-   dejsonlz4 - Decompress Mozilla bookmark backup files
+   dejsonlz4 - Decompress Mozilla bookmarks backup files
    Copyright (C) 2016, Avi Halachmi
    BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
 
@@ -32,7 +32,7 @@
 
 /*
    lz4.c and lz4.h are verbatim copies from Mozilla source tree mfbt/lz4.*
-   (Mercurial) rev: c3f5e6079284 (2016-05-16) and carry their own license.
+   (Mercurial) rev: c3f5e6079284 (2016-05-12) and carry their own license.
 */
 
 /* Build: gcc -Wall -o dejsonlz4 dejsonlz4.c lz4.c */
@@ -50,9 +50,9 @@ const int decomp_size = 4;  /* 4 bytes size come after the header */
 void exit_usage(int code) {
     fprintf((code ? stderr : stdout), "%s",
             "Usage: dejsonlz4 [-h] IN_FILE [OUT_FILE]\n"
-            "   -h: Display this help and exit.\n"
+            "   -h  Display this help and exit.\n"
             "Decompress Mozilla bookmarks backup file IN_FILE to OUT_FILE.\n"
-            "If OUT_FILE is missing or is '-' then decompress to standard output.\n"
+            "If OUT_FILE is '-' or missing, decompress to standard output.\n"
            );
     exit(code);
 }
