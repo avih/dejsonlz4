@@ -17,7 +17,7 @@ If OUT_FILE is '-' or missing, decompress to standard output.
 ```
 
 ## Build:
-- `gcc -Wall -o dejsonlz4 dejsonlz4.c lz4.c`
+- `gcc -Wall -o dejsonlz4 src/dejsonlz4.c src/lz4.c`
 
 ## Windows note:
 - `dejsonlz4` on Windows does not support unicode path/file names at this time.
