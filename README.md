@@ -13,7 +13,10 @@ repository as of 2016-05-12 (as currently used by Firefox) [1].
 Usage: dejsonlz4 [-h] IN_FILE [OUT_FILE]
    -h  Display this help and exit.
 Decompress Mozilla bookmarks backup file IN_FILE to OUT_FILE.
+If IN_FILE is '-', decompress from standard input.
 If OUT_FILE is '-' or missing, decompress to standard output.
+Note: IN_FILE is transferred to memory entirely before decompressing.
+Decompression is also done in memory entirely before output.
 ```
 
 ## Build:

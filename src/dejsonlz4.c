@@ -52,34 +52,56 @@ void exit_usage(int code) {
             "Usage: dejsonlz4 [-h] IN_FILE [OUT_FILE]\n"
             "   -h  Display this help and exit.\n"
             "Decompress Mozilla bookmarks backup file IN_FILE to OUT_FILE.\n"
+            "If IN_FILE is '-', decompress from standard input.\n"
             "If OUT_FILE is '-' or missing, decompress to standard output.\n"
+            "Note: IN_FILE is transferred to memory entirely before decompressing.\n"
+            "Decompression is also done in memory entirely before output.\n"
            );
     exit(code);
 }
 
+/* If required, prevents EOL translations with f. Returns non-zero on failure */
+int ensure_binary(FILE *f)
+{
+#ifdef _WIN32
+    /* -1 is failure: https://msdn.microsoft.com/en-us/library/tw4k6df8.aspx */
+    return _setmode(_fileno(f), O_BINARY) == -1;
+#else
+    return 0;  /* not required */
+#endif
+}
+
+#define INITIAL_ALLOC_SIZE (32 * 1024)
+
+/* if fname is NULL, reads from stdin till EOF */
 void *file_to_mem(const char *fname, size_t *out_size)
 {
-    size_t fsize = 0;
-    void *rv = 0;
-    FILE *f = fopen(fname, "rb");
+    unsigned char *buf = 0, *rv = 0;
+    size_t buf_size = 0, got = 0;
+    FILE *f = fname ? fopen(fname, "rb") : stdin;
     if (!f)
-        goto cleanup;
-    if (fseek(f, 0, SEEK_END) < 0)
-        goto cleanup;
-    fsize = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    if (!(rv = malloc(fsize)))
-        goto cleanup;
-    if (fsize != fread(rv, 1, fsize, f)) {
-        free(rv);
+        return 0;  /* can't do anything */
+    if (!fname && ensure_binary(f))
+        fprintf(stderr, "Warning: cannot set stdin to binary mode\n");
+
+    do {
+        buf_size = got ? got * 2 : INITIAL_ALLOC_SIZE;
+        if (buf_size <= got || !(buf = realloc(buf, buf_size)))
+            break;  /* size_t wrap-around or OOM: break before EOF */
+        rv = buf;
+        got += fread(buf + got, 1, buf_size - got, f);
+    } while (got == buf_size);  /* otherwise feof(f) or ferror(f) */
+
+    if (!buf || !feof(f) || ferror(f)) {
+        if (rv)
+            free(rv);
         rv = 0;
     }
 
-cleanup:
-    if (f)
+    if (f && fname)
         fclose(f);
     if (rv && out_size)
-        *out_size = fsize;
+        *out_size = got;
     return rv;
 }
 
@@ -98,13 +120,14 @@ int main(int argc, char **argv)
     /* process arguments */
     if ((argc > 3) || (argc < 2) || (argc > 1 && !strcmp(argv[1], "-h")))
         exit_usage(argc == 2 ? 0 : 1);
-    iname = argv[1];
+    if (argc > 1 && strcmp("-", argv[1]))
+        iname = argv[1];
     if (argc > 2 && strcmp("-", argv[2]))
         oname = argv[2];
 
     /* read input file and validate magic header and minimum size */
     if (!(idata = file_to_mem(iname, &isize)))
-        ERR_CLEANUP("cannot read file '%s'\n", iname);
+        ERR_CLEANUP("cannot read file '%s'\n", iname ? iname : "<stdin>");
     if (isize < magic_size + decomp_size || memcmp(mozlz4_magic, idata, magic_size))
         ERR_CLEANUP("unsupported file format\n");
 
@@ -121,20 +144,10 @@ int main(int argc, char **argv)
         fprintf(stderr, "Warning: decompressed file smaller than expected\n");
 
     /* write output */
-    if (oname) {
-        if (!(ofile = fopen(oname, "wb")))
-            ERR_CLEANUP("cannot open '%s' for writing\n", oname);
-    } else {
-#ifdef _WIN32
-        /* Try changing stdout to binary mode, or else it messes with EOL chars.
-         * Might not matter much for Mozilla files since they're text.
-         */
-        if (_setmode(_fileno(stdout), O_BINARY) == -1)
-            fprintf(stderr, "Warning: cannot set output to binary mode\n");
-#endif
-        ofile = stdout;
-    }
-
+    if (!(ofile = oname ? fopen(oname, "wb") : stdout))
+        ERR_CLEANUP("cannot open '%s' for writing\n", oname);
+    if (!oname && ensure_binary(ofile))
+        fprintf(stderr, "Warning: cannot set stdout to binary mode\n");
     if (dsize != fwrite(odata, 1, dsize, ofile))
         ERR_CLEANUP("cannot write to '%s'\n", oname ? oname : "<stdout>");
 
